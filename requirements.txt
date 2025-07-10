@@ -1,0 +1,8 @@
+fastapi==0.115.2
+uvicorn==0.32.0
+torch==2.4.1
+transformers==4.46.0
+datasets==3.0.1
+pydantic==2.9.2
+gunicorn==23.0.0
+fastapi-background-tasks==0.1.0

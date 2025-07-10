@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TinyLlama Medical Chatbot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #3498db;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-right: 10px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .status-loading {
+      display: flex;
+      align-items: center;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto">
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-800 mb-4">🩺 TinyLlama Medical Chatbot</h1>
+        <p class="text-lg text-gray-600">Fine-tune and interact with a TinyLlama model for medical Q&A</p>
+      </div>
+
+      <!-- Main Content -->
+      <div class="bg-white rounded-xl shadow-lg p-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <!-- Input Section -->
+          <div class="space-y-6">
+            <div>
+              <label for="instruction" class="block text-sm font-semibold text-gray-700 mb-2">
+                📝 Medical Instruction
+              </label>
+              <textarea 
+                id="instruction" 
+                class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none" 
+                placeholder="Enter your medical question (e.g., 'What should I do for a persistent headache?')" 
+                rows="4"
+              ></textarea>
+            </div>
+
+            <div>
+              <label for="input-text" class="block text-sm font-semibold text-gray-700 mb-2">
+                ℹ️ Additional Context (Optional)
+              </label>
+              <textarea 
+                id="input-text" 
+                class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none" 
+                placeholder="Additional details about your symptoms or situation" 
+                rows="3"
+              ></textarea>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4">
+              <button 
+                id="fine-tune-btn" 
+                class="flex-1 py-3 px-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium"
+              >
+                🔧 Fine-Tune Model
+              </button>
+              <button 
+                id="infer-btn" 
+                class="flex-1 py-3 px-6 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 font-medium"
+              >
+                🚀 Get Medical Advice
+              </button>
+            </div>
+          </div>
+
+          <!-- Output Section -->
+          <div class="space-y-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                💬 AI Response
+              </label>
+              <div 
+                id="output" 
+                class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[200px] text-gray-800 whitespace-pre-wrap overflow-y-auto"
+              >
+                Response will appear here...
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                📊 System Status
+              </label>
+              <div 
+                id="status" 
+                class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[100px] text-gray-800"
+              >
+                Ready to process requests...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Example Inputs -->
+        <div class="mt-8 border-t pt-8">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">💡 Try These Examples</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button 
+              class="example-btn p-4 bg-gradient-to-r from-purple-100 to-purple-200 hover:from-purple-200 hover:to-purple-300 text-purple-800 rounded-lg transition-all duration-200 text-left border border-purple-300" 
+              data-instruction="Provide advice for a headache" 
+              data-input="I've had a headache for two days and it's getting worse"
+            >
+              <div class="font-medium">🤕 Persistent Headache</div>
+              <div class="text-sm mt-1">Two-day headache advice</div>
+            </button>
+            <button 
+              class="example-btn p-4 bg-gradient-to-r from-orange-100 to-orange-200 hover:from-orange-200 hover:to-orange-300 text-orange-800 rounded-lg transition-all duration-200 text-left border border-orange-300" 
+              data-instruction="What should I do for a sore throat?" 
+              data-input=""
+            >
+              <div class="font-medium">🎗️ Sore Throat</div>
+              <div class="text-sm mt-1">General throat pain relief</div>
+            </button>
+            <button 
+              class="example-btn p-4 bg-gradient-to-r from-red-100 to-red-200 hover:from-red-200 hover:to-red-300 text-red-800 rounded-lg transition-all duration-200 text-left border border-red-300" 
+              data-instruction="How to treat a minor burn?" 
+              data-input="I burned my hand on a hot pan while cooking"
+            >
+              <div class="font-medium">🔥 Minor Burn</div>
+              <div class="text-sm mt-1">Kitchen burn treatment</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Medical Disclaimer -->
+        <div class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div class="flex items-start">
+            <div class="flex-shrink-0">
+              <svg class="w-5 h-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-yellow-800">
+                <strong>Medical Disclaimer:</strong> This AI chatbot provides general information only and should not replace professional medical advice. Always consult with a qualified healthcare provider for medical concerns.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fineTuneBtn = document.getElementById('fine-tune-btn');
+    const inferBtn = document.getElementById('infer-btn');
+    const instructionInput = document.getElementById('instruction');
+    const inputText = document.getElementById('input-text');
+    const outputDiv = document.getElementById('output');
+    const statusDiv = document.getElementById('status');
+    const exampleButtons = document.querySelectorAll('.example-btn');
+
+    function updateStatus(message, isError = false, isLoading = false) {
+      statusDiv.innerHTML = '';
+      
+      if (isLoading) {
+        const loader = document.createElement('div');
+        loader.className = 'loader';
+        const text = document.createElement('span');
+        text.textContent = message;
+        statusDiv.appendChild(loader);
+        statusDiv.appendChild(text);
+        statusDiv.className = 'w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[100px] text-gray-800 status-loading';
+      } else {
+        statusDiv.textContent = message;
+        statusDiv.className = `w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[100px] ${isError ? 'text-red-600' : 'text-green-600'}`;
+      }
+    }
+
+    function updateOutput(message) {
+      outputDiv.textContent = message;
+    }
+
+    function disableButtons(disabled) {
+      fineTuneBtn.disabled = disabled;
+      inferBtn.disabled = disabled;
+      exampleButtons.forEach(btn => btn.disabled = disabled);
+      
+      if (disabled) {
+        fineTuneBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        inferBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        fineTuneBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        inferBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+
+    fineTuneBtn.addEventListener('click', async () => {
+      updateStatus('Starting fine-tuning process...', false, true);
+      disableButtons(true);
+      
+      try {
+        const response = await fetch('/fine-tune', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+          updateStatus(`✅ ${data.message || 'Fine-tuning completed successfully!'}`);
+        } else {
+          updateStatus(`❌ Error: ${data.detail || 'Unknown error occurred'}`, true);
+        }
+      } catch (error) {
+        updateStatus(`❌ Network Error: ${error.message}`, true);
+      } finally {
+        disableButtons(false);
+      }
+    });
+
+    inferBtn.addEventListener('click', async () => {
+      const instruction = instructionInput.value.trim();
+      const input = inputText.value.trim();
+
+      if (!instruction) {
+        updateStatus('❌ Please enter a medical instruction.', true);
+        instructionInput.focus();
+        return;
+      }
+
+      updateOutput('🤖 Generating medical advice...');
+      updateStatus('Processing your medical query...', false, true);
+      disableButtons(true);
+
+      try {
+        const response = await fetch('/infer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ instruction, input_text: input })
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+          updateOutput(
+            `⏱️ Processing Time: ${data.time_taken} seconds\n\n` +
+            `🤖 AI Generated Response:\n${data.generated_answer}\n\n` +
+            `📚 Reference Answer (if available):\n${data.actual_answer || 'No reference answer available in dataset.'}`
+          );
+          updateStatus('✅ Medical advice generated successfully!');
+        } else {
+          updateOutput(`❌ Error: ${data.detail || 'Unknown error occurred'}`);
+          updateStatus('❌ Failed to generate medical advice.', true);
+        }
+      } catch (error) {
+        updateOutput(`❌ Network Error: ${error.message}`);
+        updateStatus('❌ Failed to connect to the server.', true);
+      } finally {
+        disableButtons(false);
+      }
+    });
+
+    exampleButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        instructionInput.value = button.dataset.instruction;
+        inputText.value = button.dataset.input;
+        // Auto-trigger inference for examples
+        setTimeout(() => {
+          inferBtn.click();
+        }, 100);
+      });
+    });
+
+    // Auto-focus on instruction input
+    instructionInput.focus();
+  </script>
+</body>
+</html>
