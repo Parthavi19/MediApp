@@ -10,24 +10,6 @@
     body {
       font-family: 'Inter', sans-serif;
     }
-    .loader {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #3498db;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      animation: spin 1s linear infinite;
-      display: inline-block;
-      margin-right: 10px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .status-loading {
-      display: flex;
-      align-items: center;
-    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
@@ -36,7 +18,15 @@
       <!-- Header -->
       <div class="text-center mb-8">
         <h1 class="text-4xl font-bold text-gray-800 mb-4">🩺 TinyLlama Medical Chatbot</h1>
-        <p class="text-lg text-gray-600">Fine-tune and interact with a TinyLlama model for medical Q&A</p>
+        <p class="text-lg text-gray-600">Get medical advice from our fine-tuned AI model</p>
+        <div class="mt-4 inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+          <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 
+
+20 20">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+          </svg>
+          Model Ready & Fine-tuned
+        </div>
       </div>
 
       <!-- Main Content -->
@@ -46,7 +36,7 @@
           <div class="space-y-6">
             <div>
               <label for="instruction" class="block text-sm font-semibold text-gray-700 mb-2">
-                📝 Medical Instruction
+                📝 Medical Question
               </label>
               <textarea 
                 id="instruction" 
@@ -68,16 +58,10 @@
               ></textarea>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-4">
-              <button 
-                id="fine-tune-btn" 
-                class="flex-1 py-3 px-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium"
-              >
-                🔧 Fine-Tune Model
-              </button>
+            <div class="flex justify-center">
               <button 
                 id="infer-btn" 
-                class="flex-1 py-3 px-6 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 font-medium"
+                class="w-full py-4 px-8 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 font-medium text-lg shadow-lg hover:shadow-xl"
               >
                 🚀 Get Medical Advice
               </button>
@@ -88,25 +72,13 @@
           <div class="space-y-6">
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
-                💬 AI Response
+                💬 Medical Response
               </label>
               <div 
                 id="output" 
-                class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[200px] text-gray-800 whitespace-pre-wrap overflow-y-auto"
+                class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[250px] text-gray-800 whitespace-pre-wrap overflow-y-auto"
               >
-                Response will appear here...
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">
-                📊 System Status
-              </label>
-              <div 
-                id="status" 
-                class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[100px] text-gray-800"
-              >
-                Ready to process requests...
+                Your medical advice will appear here...
               </div>
             </div>
           </div>
@@ -114,11 +86,11 @@
 
         <!-- Example Inputs -->
         <div class="mt-8 border-t pt-8">
-          <h2 class="text-xl font-semibold text-gray-800 mb-4">💡 Try These Examples</h2>
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">💡 Try These Common Medical Questions</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button 
               class="example-btn p-4 bg-gradient-to-r from-purple-100 to-purple-200 hover:from-purple-200 hover:to-purple-300 text-purple-800 rounded-lg transition-all duration-200 text-left border border-purple-300" 
-              data-instruction="Provide advice for a headache" 
+              data-instruction="What should I do for a persistent headache?" 
               data-input="I've had a headache for two days and it's getting worse"
             >
               <div class="font-medium">🤕 Persistent Headache</div>
@@ -143,6 +115,28 @@
           </div>
         </div>
 
+        <!-- Additional Examples -->
+        <div class="mt-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button 
+              class="example-btn p-4 bg-gradient-to-r from-blue-100 to-blue-200 hover:from-blue-200 hover:to-blue-300 text-blue-800 rounded-lg transition-all duration-200 text-left border border-blue-300" 
+              data-instruction="What are the symptoms of dehydration?" 
+              data-input=""
+            >
+              <div class="font-medium">💧 Dehydration Symptoms</div>
+              <div class="text-sm mt-1">Identify dehydration signs</div>
+            </button>
+            <button 
+              class="example-btn p-4 bg-gradient-to-r from-teal-100 to-teal-200 hover:from-teal-200 hover:to-teal-300 text-teal-800 rounded-lg transition-all duration-200 text-left border border-teal-300" 
+              data-instruction="How to care for a minor cut?" 
+              data-input="I have a small cut on my finger from a kitchen knife"
+            >
+              <div class="font-medium">🩹 Minor Cut Care</div>
+              <div class="text-sm mt-1">Proper wound care steps</div>
+            </button>
+          </div>
+        </div>
+
         <!-- Medical Disclaimer -->
         <div class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div class="flex items-start">
@@ -153,7 +147,7 @@
             </div>
             <div class="ml-3">
               <p class="text-sm text-yellow-800">
-                <strong>Medical Disclaimer:</strong> This AI chatbot provides general information only and should not replace professional medical advice. Always consult with a qualified healthcare provider for medical concerns.
+                <strong>Medical Disclaimer:</strong> This AI chatbot provides general information only and should not replace professional medical advice. Always consult with a qualified healthcare provider for medical concerns, especially in emergency situations.
               </p>
             </div>
           </div>
@@ -163,84 +157,36 @@
   </div>
 
   <script>
-    const fineTuneBtn = document.getElementById('fine-tune-btn');
     const inferBtn = document.getElementById('infer-btn');
     const instructionInput = document.getElementById('instruction');
     const inputText = document.getElementById('input-text');
     const outputDiv = document.getElementById('output');
-    const statusDiv = document.getElementById('status');
     const exampleButtons = document.querySelectorAll('.example-btn');
-
-    function updateStatus(message, isError = false, isLoading = false) {
-      statusDiv.innerHTML = '';
-      
-      if (isLoading) {
-        const loader = document.createElement('div');
-        loader.className = 'loader';
-        const text = document.createElement('span');
-        text.textContent = message;
-        statusDiv.appendChild(loader);
-        statusDiv.appendChild(text);
-        statusDiv.className = 'w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[100px] text-gray-800 status-loading';
-      } else {
-        statusDiv.textContent = message;
-        statusDiv.className = `w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[100px] ${isError ? 'text-red-600' : 'text-green-600'}`;
-      }
-    }
 
     function updateOutput(message) {
       outputDiv.textContent = message;
     }
 
     function disableButtons(disabled) {
-      fineTuneBtn.disabled = disabled;
       inferBtn.disabled = disabled;
       exampleButtons.forEach(btn => btn.disabled = disabled);
       
       if (disabled) {
-        fineTuneBtn.classList.add('opacity-50', 'cursor-not-allowed');
         inferBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        exampleButtons.forEach(btn => btn.classList.add('opacity-50', 'cursor-not-allowed'));
       } else {
-        fineTuneBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         inferBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        exampleButtons.forEach(btn => btn.classList.remove('opacity-50', 'cursor-not-allowed'));
       }
     }
 
-    fineTuneBtn.addEventListener('click', async () => {
-      updateStatus('Starting fine-tuning process...', false, true);
-      disableButtons(true);
-      
-      try {
-        const response = await fetch('/fine-tune', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await response.json();
-        
-        if (response.ok) {
-          updateStatus(`✅ ${data.message || 'Fine-tuning completed successfully!'}`);
-        } else {
-          updateStatus(`❌ Error: ${data.detail || 'Unknown error occurred'}`, true);
-        }
-      } catch (error) {
-        updateStatus(`❌ Network Error: ${error.message}`, true);
-      } finally {
-        disableButtons(false);
-      }
-    });
-
-    inferBtn.addEventListener('click', async () => {
-      const instruction = instructionInput.value.trim();
-      const input = inputText.value.trim();
-
+    async function processQuery(instruction, input) {
       if (!instruction) {
-        updateStatus('❌ Please enter a medical instruction.', true);
+        updateOutput('❌ Please enter a medical question.');
         instructionInput.focus();
         return;
       }
 
-      updateOutput('🤖 Generating medical advice...');
-      updateStatus('Processing your medical query...', false, true);
       disableButtons(true);
 
       try {
@@ -252,37 +198,43 @@
         const data = await response.json();
         
         if (response.ok) {
-          updateOutput(
-            `⏱️ Processing Time: ${data.time_taken} seconds\n\n` +
-            `🤖 AI Generated Response:\n${data.generated_answer}\n\n` +
-            `📚 Reference Answer (if available):\n${data.actual_answer || 'No reference answer available in dataset.'}`
-          );
-          updateStatus('✅ Medical advice generated successfully!');
+          updateOutput(data.generated_answer);
         } else {
           updateOutput(`❌ Error: ${data.detail || 'Unknown error occurred'}`);
-          updateStatus('❌ Failed to generate medical advice.', true);
         }
       } catch (error) {
         updateOutput(`❌ Network Error: ${error.message}`);
-        updateStatus('❌ Failed to connect to the server.', true);
       } finally {
         disableButtons(false);
       }
+    }
+
+    inferBtn.addEventListener('click', async () => {
+      const instruction = instructionInput.value.trim();
+      const input = inputText.value.trim();
+      await processQuery(instruction, input);
     });
 
     exampleButtons.forEach(button => {
-      button.addEventListener('click', () => {
+      button.addEventListener('click', async () => {
         instructionInput.value = button.dataset.instruction;
         inputText.value = button.dataset.input;
-        // Auto-trigger inference for examples
-        setTimeout(() => {
-          inferBtn.click();
-        }, 100);
+        await processQuery(button.dataset.instruction, button.dataset.input);
       });
     });
 
     // Auto-focus on instruction input
     instructionInput.focus();
+
+    // Add Enter key support for text areas
+    instructionInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const instruction = instructionInput.value.trim();
+        const input = inputText.value.trim();
+        await processQuery(instruction, input);
+      }
+    });
   </script>
 </body>
 </html>
