@@ -10,6 +10,47 @@
     body {
       font-family: 'Inter', sans-serif;
     }
+    .typing-indicator {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #3b82f6;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .response-card {
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border-left: 4px solid #3b82f6;
+    }
+    .step-item {
+      position: relative;
+      padding-left: 2rem;
+      margin-bottom: 1rem;
+    }
+    .step-item::before {
+      content: counter(step-counter);
+      counter-increment: step-counter;
+      position: absolute;
+      left: 0;
+      top: 0;
+      background: #3b82f6;
+      color: white;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .steps-container {
+      counter-reset: step-counter;
+    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
@@ -18,14 +59,12 @@
       <!-- Header -->
       <div class="text-center mb-8">
         <h1 class="text-4xl font-bold text-gray-800 mb-4">🩺 TinyLlama Medical Chatbot</h1>
-        <p class="text-lg text-gray-600">Get medical advice from our fine-tuned AI model</p>
+        <p class="text-lg text-gray-600">Get detailed medical advice with step-by-step guidance</p>
         <div class="mt-4 inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-          <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 
-
-20 20">
+          <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
           </svg>
-          Model Ready & Fine-tuned
+          <span id="model-status">Model Ready & Fine-tuned</span>
         </div>
       </div>
 
@@ -53,7 +92,7 @@
               <textarea 
                 id="input-text" 
                 class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none" 
-                placeholder="Additional details about your symptoms or situation" 
+                placeholder="Additional details about your symptoms, duration, severity, etc." 
                 rows="3"
               ></textarea>
             </div>
@@ -76,9 +115,19 @@
               </label>
               <div 
                 id="output" 
-                class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[250px] text-gray-800 whitespace-pre-wrap overflow-y-auto"
+                class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[300px] text-gray-800 overflow-y-auto response-card"
               >
-                Your medical advice will appear here...
+                <div class="text-center text-gray-500 mt-20">
+                  Your detailed medical advice will appear here...
+                </div>
+              </div>
+            </div>
+
+            <!-- Response Stats -->
+            <div id="response-stats" class="hidden bg-blue-50 p-3 rounded-lg text-sm">
+              <div class="flex justify-between items-center">
+                <span class="text-blue-700">Response Time:</span>
+                <span id="response-time" class="font-medium text-blue-900">--</span>
               </div>
             </div>
           </div>
@@ -91,26 +140,26 @@
             <button 
               class="example-btn p-4 bg-gradient-to-r from-purple-100 to-purple-200 hover:from-purple-200 hover:to-purple-300 text-purple-800 rounded-lg transition-all duration-200 text-left border border-purple-300" 
               data-instruction="What should I do for a persistent headache?" 
-              data-input="I've had a headache for two days and it's getting worse"
+              data-input="I've had a throbbing headache for two days. It's worse in the morning and I feel nauseous."
             >
               <div class="font-medium">🤕 Persistent Headache</div>
-              <div class="text-sm mt-1">Two-day headache advice</div>
+              <div class="text-sm mt-1">Two-day headache with nausea</div>
             </button>
             <button 
               class="example-btn p-4 bg-gradient-to-r from-orange-100 to-orange-200 hover:from-orange-200 hover:to-orange-300 text-orange-800 rounded-lg transition-all duration-200 text-left border border-orange-300" 
-              data-instruction="What should I do for a sore throat?" 
-              data-input=""
+              data-instruction="What are the steps to treat a sore throat?" 
+              data-input="My throat has been sore for 3 days, painful when swallowing, and I have a slight fever."
             >
-              <div class="font-medium">🎗️ Sore Throat</div>
-              <div class="text-sm mt-1">General throat pain relief</div>
+              <div class="font-medium">🎗️ Sore Throat Treatment</div>
+              <div class="text-sm mt-1">Step-by-step throat care</div>
             </button>
             <button 
               class="example-btn p-4 bg-gradient-to-r from-red-100 to-red-200 hover:from-red-200 hover:to-red-300 text-red-800 rounded-lg transition-all duration-200 text-left border border-red-300" 
-              data-instruction="How to treat a minor burn?" 
-              data-input="I burned my hand on a hot pan while cooking"
+              data-instruction="How to properly treat a minor burn?" 
+              data-input="I burned my hand on a hot pan while cooking. The skin is red and painful but not blistered."
             >
-              <div class="font-medium">🔥 Minor Burn</div>
-              <div class="text-sm mt-1">Kitchen burn treatment</div>
+              <div class="font-medium">🔥 Minor Burn Care</div>
+              <div class="text-sm mt-1">First aid steps for burns</div>
             </button>
           </div>
         </div>
@@ -120,19 +169,19 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button 
               class="example-btn p-4 bg-gradient-to-r from-blue-100 to-blue-200 hover:from-blue-200 hover:to-blue-300 text-blue-800 rounded-lg transition-all duration-200 text-left border border-blue-300" 
-              data-instruction="What are the symptoms of dehydration?" 
-              data-input=""
+              data-instruction="What are the steps to identify and treat dehydration?" 
+              data-input="I've been feeling dizzy and tired, with a dry mouth and haven't been drinking much water."
             >
-              <div class="font-medium">💧 Dehydration Symptoms</div>
-              <div class="text-sm mt-1">Identify dehydration signs</div>
+              <div class="font-medium">💧 Dehydration Management</div>
+              <div class="text-sm mt-1">Identify and treat dehydration</div>
             </button>
             <button 
               class="example-btn p-4 bg-gradient-to-r from-teal-100 to-teal-200 hover:from-teal-200 hover:to-teal-300 text-teal-800 rounded-lg transition-all duration-200 text-left border border-teal-300" 
-              data-instruction="How to care for a minor cut?" 
-              data-input="I have a small cut on my finger from a kitchen knife"
+              data-instruction="What are the proper steps for wound care?" 
+              data-input="I have a small cut on my finger from a kitchen knife. It's bleeding but not too deep."
             >
-              <div class="font-medium">🩹 Minor Cut Care</div>
-              <div class="text-sm mt-1">Proper wound care steps</div>
+              <div class="font-medium">🩹 Wound Care Steps</div>
+              <div class="text-sm mt-1">Proper wound cleaning and care</div>
             </button>
           </div>
         </div>
@@ -161,10 +210,59 @@
     const instructionInput = document.getElementById('instruction');
     const inputText = document.getElementById('input-text');
     const outputDiv = document.getElementById('output');
+    const responseStats = document.getElementById('response-stats');
+    const responseTime = document.getElementById('response-time');
+    const modelStatus = document.getElementById('model-status');
     const exampleButtons = document.querySelectorAll('.example-btn');
 
-    function updateOutput(message) {
-      outputDiv.textContent = message;
+    function formatMedicalResponse(response) {
+      // Try to format the response with better structure
+      let formatted = response.trim();
+      
+      // If response is very short, add some guidance
+      if (formatted.length < 50) {
+        formatted = `${formatted}\n\n📌 For more detailed guidance, please provide additional context about your symptoms, duration, and severity.`;
+      }
+      
+      // Look for step-like patterns and format them
+      if (formatted.includes('1.') || formatted.includes('First') || formatted.includes('Step')) {
+        const steps = formatted.split(/(?=\d+\.|\bFirst\b|\bSecond\b|\bThird\b|\bStep\s*\d+)/i);
+        if (steps.length > 1) {
+          const stepsHtml = steps.map(step => {
+            if (step.trim()) {
+              return `<div class="step-item">${step.trim()}</div>`;
+            }
+            return '';
+          }).join('');
+          
+          return `<div class="steps-container">${stepsHtml}</div>`;
+        }
+      }
+      
+      // Split into paragraphs and format
+      const paragraphs = formatted.split('\n\n').filter(p => p.trim());
+      if (paragraphs.length > 1) {
+        return paragraphs.map(p => `<p class="mb-3">${p.trim()}</p>`).join('');
+      }
+      
+      return `<p>${formatted}</p>`;
+    }
+
+    function updateOutput(message, isError = false) {
+      if (isError) {
+        outputDiv.innerHTML = `<div class="text-red-600 font-medium">${message}</div>`;
+      } else {
+        outputDiv.innerHTML = formatMedicalResponse(message);
+      }
+    }
+
+    function showLoadingState() {
+      outputDiv.innerHTML = `
+        <div class="flex items-center justify-center h-32">
+          <div class="typing-indicator mr-3"></div>
+          <span class="text-gray-600">Analyzing your medical question...</span>
+        </div>
+      `;
     }
 
     function disableButtons(disabled) {
@@ -173,42 +271,85 @@
       
       if (disabled) {
         inferBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        inferBtn.innerHTML = '<div class="typing-indicator mr-2"></div> Processing...';
         exampleButtons.forEach(btn => btn.classList.add('opacity-50', 'cursor-not-allowed'));
       } else {
         inferBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        inferBtn.innerHTML = '🚀 Get Medical Advice';
         exampleButtons.forEach(btn => btn.classList.remove('opacity-50', 'cursor-not-allowed'));
+      }
+    }
+
+    async function checkSystemStatus() {
+      try {
+        const response = await fetch('/status');
+        const data = await response.json();
+        
+        if (data.status === 'ready') {
+          modelStatus.textContent = 'Model Ready & Fine-tuned';
+          modelStatus.parentElement.className = 'mt-4 inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium';
+        } else {
+          modelStatus.textContent = 'Model Initializing...';
+          modelStatus.parentElement.className = 'mt-4 inline-flex items-center px-4 py-2 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium';
+        }
+      } catch (error) {
+        modelStatus.textContent = 'Connection Error';
+        modelStatus.parentElement.className = 'mt-4 inline-flex items-center px-4 py-2 bg-red-100 text-red-800 rounded-full text-sm font-medium';
       }
     }
 
     async function processQuery(instruction, input) {
       if (!instruction) {
-        updateOutput('❌ Please enter a medical question.');
+        updateOutput('❌ Please enter a medical question.', true);
         instructionInput.focus();
         return;
       }
 
       disableButtons(true);
+      showLoadingState();
+      responseStats.classList.add('hidden');
 
       try {
+        const startTime = Date.now();
         const response = await fetch('/infer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ instruction, input_text: input })
         });
+        
+        const endTime = Date.now();
         const data = await response.json();
         
         if (response.ok) {
-          updateOutput(data.generated_answer);
+          updateOutput(data.generated_answer || 'No response generated.');
+          
+          // Show response stats
+          responseTime.textContent = `${((endTime - startTime) / 1000).toFixed(2)}s`;
+          responseStats.classList.remove('hidden');
+          
+          // If response is very short, show a helpful message
+          if (data.generated_answer && data.generated_answer.length < 50) {
+            setTimeout(() => {
+              outputDiv.innerHTML += `
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p class="text-sm text-blue-800">
+                    💡 <strong>Tip:</strong> For more detailed step-by-step guidance, try providing more specific information about your symptoms, their duration, and severity.
+                  </p>
+                </div>
+              `;
+            }, 1000);
+          }
         } else {
-          updateOutput(`❌ Error: ${data.detail || 'Unknown error occurred'}`);
+          updateOutput(`❌ Error: ${data.detail || 'Unknown error occurred'}`, true);
         }
       } catch (error) {
-        updateOutput(`❌ Network Error: ${error.message}`);
+        updateOutput(`❌ Network Error: ${error.message}`, true);
       } finally {
         disableButtons(false);
       }
     }
 
+    // Event listeners
     inferBtn.addEventListener('click', async () => {
       const instruction = instructionInput.value.trim();
       const input = inputText.value.trim();
@@ -235,6 +376,12 @@
         await processQuery(instruction, input);
       }
     });
+
+    // Check system status on load
+    checkSystemStatus();
+    
+    // Check status every 30 seconds
+    setInterval(checkSystemStatus, 30000);
   </script>
 </body>
 </html>
