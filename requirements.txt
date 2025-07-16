@@ -1,15 +1,8 @@
-<<<<<<< HEAD
-torch==2.4.1
-transformers==4.46.0
-datasets==3.0.1
-flask==2.3.3
-=======
-uvicorn==0.32.0
-torch==2.5.0+cpu
 --index-url https://download.pytorch.org/whl/cpu
+torch==2.5.0+cpu
 transformers==4.46.0
 datasets==3.0.1
+flask==3.0.3
+uvicorn==0.32.0
 pydantic==2.9.2
 gunicorn==23.0.0
-flask==3.0.3
->>>>>>> c96b0b1230365ccdb099cb376bc42228da1af265
