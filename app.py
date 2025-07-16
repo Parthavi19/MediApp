@@ -172,6 +172,11 @@ def serve_ui():
     except IOError as e:
         return f"Error reading index.html: {str(e)}", 500
 
+# Health check endpoint
+@app.route('/health')
+def health_check():
+    return '', 200  # Returns an empty response with 200 OK status
+
 @app.route('/status', methods=['GET'])
 def get_status():
     """Get system status"""
