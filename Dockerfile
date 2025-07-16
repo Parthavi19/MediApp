@@ -15,7 +15,7 @@ RUN pip install flask "transformers[torch]" datasets accelerate
 COPY . .
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
 # Run the app
 CMD ["python", "app.py"]
