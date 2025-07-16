@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify
 import os
 import gc
 import time
@@ -27,20 +27,39 @@ os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 device = torch.device("cpu")
 torch.backends.mps.is_available = lambda: False  # Disable MPS completely
 
-# Load model & tokenizer
-model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
-model = AutoModelForCausalLM.from_pretrained(model_id)
-model.config.use_cache = False
-model.to(device)
-model.gradient_checkpointing_enable()
+# Global variables for model and dataset
+model = None
+tokenizer = None
+dataset = None
+is_fine_tuned = False
 
-# Load dataset
-dataset = load_dataset("lavita/ChatDoctor-HealthCareMagic-100k", split="train").select(range(5))
+def initialize_model():
+    """Initialize the model and tokenizer"""
+    global model, tokenizer
+    
+    print("🔄 Loading TinyLlama model and tokenizer...")
+    model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
+    
+    model = AutoModelForCausalLM.from_pretrained(model_id)
+    model.config.use_cache = False
+    model.to(device)
+    model.gradient_checkpointing_enable()
+    
+    print("✅ Model and tokenizer loaded successfully!")
 
-# Preprocessing function
-def preprocess(example):
+def load_medical_dataset():
+    """Load and prepare the medical dataset"""
+    global dataset
+    
+    print("📚 Loading medical dataset...")
+    dataset = load_dataset("lavita/ChatDoctor-HealthCareMagic-100k", split="train").select(range(10))
+    print(f"✅ Dataset loaded with {len(dataset)} samples!")
+
+def preprocess_data(example):
+    """Preprocess data for training"""
     max_length = 48
     input_text = example.get('input', '') or ''
     prompt = f"Instruction: {example['instruction']}\n"
@@ -49,40 +68,95 @@ def preprocess(example):
     prompt += "Answer:"
     answer = example['output']
     full_text = prompt + " " + answer
+    
     tokenized = tokenizer(full_text, truncation=True, padding="max_length", max_length=max_length, return_tensors="pt")
     labels = tokenized["input_ids"].clone()
+    
+    # Mask the prompt tokens in labels
     prompt_tokenized = tokenizer(prompt, truncation=True, max_length=max_length, return_tensors="pt")
     prompt_len = len(prompt_tokenized["input_ids"][0])
     labels[0, :prompt_len] = -100
+    
     return {
         "input_ids": tokenized["input_ids"].squeeze(),
         "attention_mask": tokenized["attention_mask"].squeeze(),
         "labels": labels.squeeze()
     }
 
-# Tokenize dataset
-tokenized_dataset = dataset.map(preprocess, remove_columns=dataset.column_names)
+def fine_tune_model():
+    """Fine-tune the model on medical data"""
+    global model, tokenizer, dataset, is_fine_tuned
 
-# Training configuration
-training_args = TrainingArguments(
-    output_dir="./tinyllama-chatdoctor-checkpoint",
-    per_device_train_batch_size=1,
-    gradient_accumulation_steps=1,
-    num_train_epochs=1,
-    learning_rate=3e-5,
-    warmup_steps=1,
-    logging_steps=1,
-    save_strategy="epoch",
-    report_to="none",
-    fp16=False,
-    dataloader_drop_last=True,
-    remove_unused_columns=False,
-    dataloader_num_workers=0,
-    save_total_limit=1
-)
+    checkpoint_dir = "./tinyllama-chatdoctor-checkpoint"
 
-data_collator = DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8, return_tensors="pt")
-trainer = Trainer(model=model, args=training_args, train_dataset=tokenized_dataset, data_collator=data_collator)
+    # ✅ Skip training if model checkpoint exists
+    if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
+        print("🔄 Skipping training. Loading existing fine-tuned model...")
+        model = AutoModelForCausalLM.from_pretrained(checkpoint_dir)
+        model.to(device)
+        is_fine_tuned = True
+        return
+
+    print("🔧 Starting fine-tuning process...")
+    ...
+
+    
+    # Preprocess dataset
+    print("📝 Preprocessing dataset...")
+    tokenized_dataset = dataset.map(preprocess_data, remove_columns=dataset.column_names)
+    print("✅ Dataset preprocessing complete!")
+    
+    # Training configuration
+    training_args = TrainingArguments(
+        output_dir=checkpoint_dir,
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=1,
+        num_train_epochs=1,
+        learning_rate=3e-5,
+        warmup_steps=1,
+        logging_steps=1,
+        save_strategy="epoch",
+        report_to="none",
+        fp16=False,
+        dataloader_drop_last=True,
+        remove_unused_columns=False,
+        dataloader_num_workers=0,
+        save_total_limit=1
+    )
+    
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8, return_tensors="pt")
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=tokenized_dataset,
+        data_collator=data_collator
+    )
+    
+    # Start training
+    print("🚀 Training started...")
+    trainer.train()
+    
+    # Save model
+    print("💾 Saving fine-tuned model...")
+    trainer.save_model()
+    
+    # Clean up
+    gc.collect()
+    is_fine_tuned = True
+    print("✅ Fine-tuning completed successfully!")
+
+def initialize_system():
+    """Initialize the entire system"""
+    print("🚀 Initializing TinyLlama Medical Chatbot...")
+    
+    initialize_model()
+    load_medical_dataset()
+    fine_tune_model()
+    
+    print("🎉 System initialization complete! Ready to serve medical advice.")
+
+# Initialize system on startup
+initialize_system()
 
 # Serve index.html from the root directory
 @app.route('/')
@@ -92,23 +166,25 @@ def serve_ui():
             return file.read()
     except FileNotFoundError:
         return "index.html not found. Please make sure the file exists in the root directory.", 404
+    except IOError as e:
+        return f"Error reading index.html: {str(e)}", 500
 
-@app.route('/fine-tune', methods=['POST'])
-def fine_tune():
-    try:
-        trainer.train()
-        gc.collect()
-        trainer.save_model()
-        return jsonify({
-            "status": "success", 
-            "message": "Fine-tuning completed successfully! Model saved at ./tinyllama-chatdoctor-checkpoint"
-        })
-    except Exception as e:
-        return jsonify({"detail": f"Error during fine-tuning: {str(e)}"}), 500
+@app.route('/status', methods=['GET'])
+def get_status():
+    """Get system status"""
+    return jsonify({
+        "status": "ready" if is_fine_tuned else "not_ready",
+        "message": "Model is fine-tuned and ready for inference" if is_fine_tuned else "Model is not fine-tuned yet",
+        "dataset_size": len(dataset) if dataset else 0
+    })
 
 @app.route('/infer', methods=['POST'])
 def infer():
+    """Generate medical advice"""
     try:
+        if not is_fine_tuned:
+            return jsonify({"detail": "Model is not fine-tuned yet. Please wait for initialization to complete."}), 503
+        
         data = request.get_json()
         
         if not data:
@@ -120,16 +196,19 @@ def infer():
         if not instruction:
             return jsonify({"detail": "Instruction field is required"}), 400
         
+        # Construct prompt
         prompt = f"Instruction: {instruction}\n"
         if input_text:
             prompt += f"Input: {input_text}\n"
         prompt += "Answer:"
         
+        # Tokenize input
         inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=48)
         inputs = {k: v.to(device) for k, v in inputs.items()}
         
+        # Generate response
         model.eval()
-        start = time.time()
+        start_time = time.time()
         
         with torch.no_grad():
             outputs = model.generate(
@@ -141,20 +220,29 @@ def infer():
                 eos_token_id=tokenizer.eos_token_id,
             )
         
-        end = time.time()
+        end_time = time.time()
+        
+        # Decode response
         response = tokenizer.decode(outputs[0], skip_special_tokens=True)
         generated_answer = response[len(prompt):].strip()
         
-        # Find actual answer from dataset
-        actual_answer = dataset.filter(
-            lambda x: x['instruction'] == instruction and x.get('input', '') == input_text
-        )
-        actual_answer_text = actual_answer[0]['output'] if len(actual_answer) > 0 else "No actual answer available in dataset."
+        # Find actual answer from dataset for comparison
+        actual_answer = "No reference answer available in dataset."
+        try:
+            matching_examples = dataset.filter(
+                lambda x: x['instruction'].lower() == instruction.lower() and 
+                         x.get('input', '').lower() == input_text.lower()
+            )
+            if len(matching_examples) > 0:
+                actual_answer = matching_examples[0]['output']
+        except Exception as e:
+            print(f"Error finding reference answer: {e}")
         
         return jsonify({
             "generated_answer": generated_answer,
-            "actual_answer": actual_answer_text,
-            "time_taken": round(end - start, 2)
+            "actual_answer": actual_answer,
+            "time_taken": round(end_time - start_time, 2),
+            "model_status": "fine_tuned"
         })
     
     except Exception as e:
@@ -169,5 +257,6 @@ def internal_error(error):
     return jsonify({"detail": "Internal server error"}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 8000))
+    print(f"🌐 Starting server on port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
