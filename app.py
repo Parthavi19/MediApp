@@ -86,6 +86,7 @@ def preprocess_data(example):
 def fine_tune_model():
     """Fine-tune the model on medical data"""
     global model, tokenizer, dataset, is_fine_tuned
+<<<<<<< HEAD
 
     checkpoint_dir = "./tinyllama-chatdoctor-checkpoint"
 
@@ -155,6 +156,80 @@ def initialize_system():
     
     print("🎉 System initialization complete! Ready to serve medical advice.")
 
+=======
+    
+    checkpoint_dir = "./tinyllama-chatdoctor-checkpoint"
+    
+    # Check if model is already fine-tuned
+    if os.path.exists(checkpoint_dir):
+        print("🔄 Loading existing fine-tuned model...")
+        try:
+            model = AutoModelForCausalLM.from_pretrained(checkpoint_dir)
+            model.to(device)
+            is_fine_tuned = True
+            print("✅ Fine-tuned model loaded successfully!")
+            return
+        except Exception as e:
+            print(f"⚠️ Error loading existing model: {e}")
+            print("🔄 Starting fresh fine-tuning...")
+    
+    print("🔧 Starting fine-tuning process...")
+    
+    # Preprocess dataset
+    print("📝 Preprocessing dataset...")
+    tokenized_dataset = dataset.map(preprocess_data, remove_columns=dataset.column_names)
+    print("✅ Dataset preprocessing complete!")
+    
+    # Training configuration
+    training_args = TrainingArguments(
+        output_dir=checkpoint_dir,
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=1,
+        num_train_epochs=1,
+        learning_rate=3e-5,
+        warmup_steps=1,
+        logging_steps=1,
+        save_strategy="epoch",
+        report_to="none",
+        fp16=False,
+        dataloader_drop_last=True,
+        remove_unused_columns=False,
+        dataloader_num_workers=0,
+        save_total_limit=1
+    )
+    
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8, return_tensors="pt")
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=tokenized_dataset,
+        data_collator=data_collator
+    )
+    
+    # Start training
+    print("🚀 Training started...")
+    trainer.train()
+    
+    # Save model
+    print("💾 Saving fine-tuned model...")
+    trainer.save_model()
+    
+    # Clean up
+    gc.collect()
+    is_fine_tuned = True
+    print("✅ Fine-tuning completed successfully!")
+
+def initialize_system():
+    """Initialize the entire system"""
+    print("🚀 Initializing TinyLlama Medical Chatbot...")
+    
+    initialize_model()
+    load_medical_dataset()
+    fine_tune_model()
+    
+    print("🎉 System initialization complete! Ready to serve medical advice.")
+
+>>>>>>> c96b0b1230365ccdb099cb376bc42228da1af265
 # Initialize system on startup
 initialize_system()
 
@@ -257,6 +332,12 @@ def internal_error(error):
     return jsonify({"detail": "Internal server error"}), 500
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     port = int(os.environ.get("PORT", 8000))
     print(f"🌐 Starting server on port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
+=======
+    port = int(os.environ.get("PORT", 8080))
+    print(f"🌐 Starting server on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=False)
+>>>>>>> c96b0b1230365ccdb099cb376bc42228da1af265
