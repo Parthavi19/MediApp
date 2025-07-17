@@ -1,7 +1,7 @@
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.0+cpu
-transformers==4.46.0
-datasets==3.0.1
-flask==3.0.3
-gunicorn==23.0.0
+--extra-index-url https://download.pytorch.org/whl/cpu 
+torch==2.5.0+cpu 
+transformers==4.46.0 
+datasets==3.0.1 
+flask==3.0.3 
+gunicorn==23.0.0 
 accelerate==0.34.2
