@@ -76,9 +76,15 @@ def load_model_lazy(): #
 
 # === ROUTES ===
 
+<<<<<<< HEAD
 @app.route('/')
 def home():
     return render_template("index.html")
+=======
+@app.route('/') #
+def serve_ui(): #
+    return render_template("index.html") #
+>>>>>>> 063b3c017de8e7f7ab5a283cc58a1a6b8885cf8c
 
 @app.route('/health') #
 def health_check(): #
@@ -191,4 +197,8 @@ if __name__ == '__main__':
     print("🚀 Starting Flask app...") #
     # Get the PORT from environment variable, default to 8080 if not set (for local testing)
     port = int(os.environ.get("PORT", 8080)) #
+<<<<<<< HEAD
     app.run(host='0.0.0.0', port=port, debug=False) # Changed debug to False for production
+=======
+    app.run(host='0.0.0.0', port=port, debug=False) # Changed debug to False for production
+>>>>>>> 063b3c017de8e7f7ab5a283cc58a1a6b8885cf8c
