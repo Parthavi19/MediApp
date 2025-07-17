@@ -1,21 +1,19 @@
 # Use Python base image
-FROM python:3.12-slim
+FROM python:3.9-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements (if you use requirements.txt)
-# COPY requirements.txt .
-# RUN pip install -r requirements.txt
+# Copy requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install dependencies directly
-RUN pip install flask "transformers[torch]" datasets accelerate
-
-# Copy the entire app
+# Copy the entire app and checkpoint
 COPY . .
+COPY ./tinyllama-chatdoctor-checkpoint /app/tinyllama-chatdoctor-checkpoint
 
 # Expose port
 EXPOSE 8080
 
-# Run the app
-CMD ["python", "app.py"]
+# Run the app with Gunicorn for Cloud Run compatibility
+CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "app:app"]
