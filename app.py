@@ -187,6 +187,6 @@ def internal_error(error):
     return jsonify({"detail": "Internal server error"}), 500
 
 # === ENTRYPOINT ===
-if __name__ == '__main__':
-    print("🚀 Starting Flask app...")
-    app.run(host='0.0.0.0', port=8080, debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
