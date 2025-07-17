@@ -80,10 +80,20 @@ def serve_ui():
     except IOError as e:
         return f"Error reading index.html: {str(e)}", 500
 
-# Health check endpoint
+# Health check endpoint for Cloud Run
 @app.route('/health')
 def health_check():
-    return '', 200
+    """Health check endpoint for Cloud Run"""
+    return jsonify({"status": "healthy", "timestamp": time.time()}), 200
+
+@app.route('/readiness')
+def readiness_check():
+    """Readiness check - returns 200 when model is loaded"""
+    global model
+    if model is not None:
+        return jsonify({"status": "ready", "model_loaded": True}), 200
+    else:
+        return jsonify({"status": "not_ready", "model_loaded": False}), 503
 
 @app.route('/status', methods=['GET'])
 def get_status():
