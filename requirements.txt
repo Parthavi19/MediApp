@@ -1,5 +1,5 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.0+cpu
+torch==2.5.0      
 transformers==4.46.0
 datasets==3.0.1
 flask==3.0.3
