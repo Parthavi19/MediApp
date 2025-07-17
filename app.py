@@ -197,8 +197,8 @@ if __name__ == '__main__':
     print("🚀 Starting Flask app...") #
     # Get the PORT from environment variable, default to 8080 if not set (for local testing)
     port = int(os.environ.get("PORT", 8080)) #
-<<<<<<< HEAD
+#<<<<<<< HEAD
     app.run(host='0.0.0.0', port=port, debug=False) # Changed debug to False for production
-=======
-    app.run(host='0.0.0.0', port=port, debug=False) # Changed debug to False for production
->>>>>>> 063b3c017de8e7f7ab5a283cc58a1a6b8885cf8c
+#=======
+    #app.run(host='0.0.0.0', port=port, debug=False) # Changed debug to False for production
+#>>>>>>> 063b3c017de8e7f7ab5a283cc58a1a6b8885cf8c
