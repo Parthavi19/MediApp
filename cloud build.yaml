@@ -29,9 +29,9 @@ steps:
       - '--timeout'
       - '3600'
       - '--concurrency'
-      - '5'
+      - '1'
       - '--max-instances'
-      - '10'
+      - '1'
       - '--set-env-vars'
       - 'PORT=8080'
       - '--set-env-vars'
@@ -41,4 +41,4 @@ images:
 timeout: 7200s
 options:
   machineType: 'E2_HIGHCPU_8'
-  diskSizeGb: 100d at 100GB to accommodate checkpoint and dataset storage
+  diskSizeGb: 100
