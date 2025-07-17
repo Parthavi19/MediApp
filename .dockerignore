@@ -1,40 +1,50 @@
-__pycache__
-*.pyc
+# Bytecode and cache
+__pycache__/
+*.py[cod]
 *.pyo
 *.pyd
+
+# Model & intermediate files
 *.pkl
 *.safetensors
 *.bin
 *.pt
-.Python
+*.h5
+*.joblib
+
+# Python environment folders
+.env
+.venv/
 venv/
 env/
 ENV/
-.venv/
-*.env
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+
+# OS & IDE files
 .DS_Store
 ._*
 .Spotlight-V100
 .Trashes
 ehthumbs.db
 Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# IPython & notebook-related
 .ipynb_checkpoints/
-*.bin
-*.safetensors
-*.h5
-*.pkl
-*.joblib
-tinyllama-chatdoctor-checkpoint/
-data/*.csv
-logs/*.log
+
+# Coverage & test
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Huggingface & Transformers cache
 .cache/
 .huggingface/
 .transformers_cache/
-.pytest_cache/
-.coverage
-htmlcov/
+
+# Logs & data
+logs/*.log
+data/*.csv

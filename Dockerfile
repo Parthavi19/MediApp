@@ -1,22 +1,21 @@
-# Use slim base image with Python
 FROM python:3.10-slim
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PORT=8080
-ENV CHECKPOINT_DIR=/app/tinyllama-chatdoctor-checkpoint
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PORT=8080 \
+    CHECKPOINT_DIR=/app/tinyllama-chatdoctor-checkpoint
 
 # Set working directory
 WORKDIR /app
 
-# Copy all files
+# Copy all project files (make sure templates/, static/ etc. are included)
 COPY . .
 
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port 8080 for Cloud Run
+# Expose the port Flask/Gunicorn will run on
 EXPOSE 8080
 
-# Use Gunicorn to run Flask (faster, safer, recommended)
+# Run the app using Gunicorn (1 worker)
 CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:8080", "app:app"]
