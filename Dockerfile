@@ -26,5 +26,5 @@ EXPOSE 8080
 ENV PORT=8080
 ENV PYTHONUNBUFFERED=1
 
-# Run the app with Gunicorn
-CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 7200 --keep-alive 2 --max-requests 1000 --max-requests-jitter 50 app:app
+# Run the app with Gunicorn with startup-friendly settings
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 7200 --keep-alive 2 --max-requests 1000 --max-requests-jitter 50 --preload app:app
