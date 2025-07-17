@@ -31,7 +31,7 @@ steps:
       - '--concurrency'
       - '5'
       - '--max-instances'
-      - '1'
+      - '10'
       - '--set-env-vars'
       - 'PORT=8080'
       - '--set-env-vars'
