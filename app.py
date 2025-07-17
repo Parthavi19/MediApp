@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 import os
 import gc
@@ -16,6 +15,8 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    # Force garbage collection after each request
+    gc.collect()
     return response
 
 # Suppress MPS memory warning
@@ -26,37 +27,54 @@ os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 
 # Device setup - Force CPU to avoid MPS issues
 device = torch.device("cpu")
-torch.backends.mps.is_available = lambda: False  # Disable MPS completely
+torch.backends.mps.is_available = lambda: False
 
-# Global variables for model and dataset
+# Global variables - Initialize as None to save memory
 model = None
 tokenizer = None
 dataset = None
 is_fine_tuned = False
+checkpoint_dir = "./tinyllama-chatdoctor-checkpoint"
 
-def initialize_model():
-    """Initialize the model and tokenizer"""
+def load_model_lazy():
+    """Load model only when needed"""
     global model, tokenizer
-    print("🔄 Loading TinyLlama model and tokenizer...")
+    
+    # Check if fine-tuned model exists first
+    if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
+        print("🔄 Loading existing fine-tuned model...")
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(checkpoint_dir)
+            model = AutoModelForCausalLM.from_pretrained(checkpoint_dir)
+            model.to(device)
+            model.eval()  # Set to eval mode immediately
+            return True
+        except Exception as e:
+            print(f"⚠️ Error loading fine-tuned model: {e}")
+    
+    # Load base model if no fine-tuned version
+    print("🔄 Loading base TinyLlama model...")
     model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(model_id)
     model.config.use_cache = False
     model.to(device)
-    model.gradient_checkpointing_enable()
-    print("✅ Model and tokenizer loaded successfully!")
+    model.eval()
+    print("✅ Base model loaded!")
+    return False
 
-def load_medical_dataset():
-    """Load and prepare the medical dataset"""
+def load_dataset_lazy():
+    """Load dataset only when needed for fine-tuning"""
     global dataset
-    print("📚 Loading medical dataset...")
-    dataset = load_dataset("lavita/ChatDoctor-HealthCareMagic-100k", split="train").select(range(10))
-    print(f"✅ Dataset loaded with {len(dataset)} samples!")
+    if dataset is None:
+        print("📚 Loading medical dataset...")
+        dataset = load_dataset("lavita/ChatDoctor-HealthCareMagic-100k", split="train").select(range(10))
+        print(f"✅ Dataset loaded with {len(dataset)} samples!")
 
 def preprocess_data(example):
     """Preprocess data for training"""
-    max_length = 48
+    max_length = 32  # Reduced from 48 to save memory
     input_text = example.get('input', '') or ''
     prompt = f"Instruction: {example['instruction']}\n"
     if input_text.strip():
@@ -64,11 +82,13 @@ def preprocess_data(example):
     prompt += "Answer:"
     answer = example['output']
     full_text = prompt + " " + answer
+    
     tokenized = tokenizer(full_text, truncation=True, padding="max_length", max_length=max_length, return_tensors="pt")
     labels = tokenized["input_ids"].clone()
     prompt_tokenized = tokenizer(prompt, truncation=True, max_length=max_length, return_tensors="pt")
     prompt_len = len(prompt_tokenized["input_ids"][0])
     labels[0, :prompt_len] = -100
+    
     return {
         "input_ids": tokenized["input_ids"].squeeze(),
         "attention_mask": tokenized["attention_mask"].squeeze(),
@@ -76,22 +96,25 @@ def preprocess_data(example):
     }
 
 def fine_tune_model():
-    """Fine-tune the model on medical data"""
+    """Fine-tune model with memory optimization"""
     global model, tokenizer, dataset, is_fine_tuned
-    checkpoint_dir = "./tinyllama-chatdoctor-checkpoint"
-    if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
-        print("🔄 Loading existing fine-tuned model...")
-        try:
-            model = AutoModelForCausalLM.from_pretrained(checkpoint_dir)
-            model.to(device)
-            is_fine_tuned = True
-            print("✅ Fine-tuned model loaded successfully!")
-            return
-        except Exception as e:
-            print(f"⚠️ Error loading existing model: {e}")
-            print("🔄 Starting fresh fine-tuning...")
-    print("🔧 Starting fine-tuning process...")
+    
+    if is_fine_tuned:
+        return
+    
+    print("🔧 Starting memory-optimized fine-tuning...")
+    
+    # Load dataset only when needed
+    load_dataset_lazy()
+    
+    # Ensure model is in training mode
+    model.train()
+    model.gradient_checkpointing_enable()
+    
+    # Prepare dataset
     tokenized_dataset = dataset.map(preprocess_data, remove_columns=dataset.column_names)
+    
+    # Memory-optimized training arguments
     training_args = TrainingArguments(
         output_dir=checkpoint_dir,
         per_device_train_batch_size=1,
@@ -106,32 +129,50 @@ def fine_tune_model():
         dataloader_drop_last=True,
         remove_unused_columns=False,
         dataloader_num_workers=0,
-        save_total_limit=1
+        save_total_limit=1,
+        # Memory optimization
+        save_steps=100,
+        eval_steps=100,
+        logging_dir=None,
+        load_best_model_at_end=False,
+        metric_for_best_model=None,
+        greater_is_better=None,
+        ignore_data_skip=True,
+        dataloader_pin_memory=False,
     )
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer, pad_to_multiple_of=8, return_tensors="pt")
+    
+    data_collator = DataCollatorWithPadding(
+        tokenizer=tokenizer, 
+        pad_to_multiple_of=8, 
+        return_tensors="pt"
+    )
+    
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=tokenized_dataset,
         data_collator=data_collator
     )
-    print("🚀 Training started...")
-    trainer.train()
-    print("💾 Saving fine-tuned model...")
-    trainer.save_model()
-    gc.collect()
-    is_fine_tuned = True
-    print("✅ Fine-tuning completed successfully!")
-
-def initialize_system():
-    """Initialize the entire system"""
-    print("🚀 Initializing TinyLlama Medical Chatbot...")
-    initialize_model()
-    load_medical_dataset()
-    print("🎉 System initialization complete! Ready to fine-tune on first request.")
-
-# Initialize system on startup (without fine-tuning)
-initialize_system()
+    
+    try:
+        print("🚀 Training started...")
+        trainer.train()
+        print("💾 Saving fine-tuned model...")
+        trainer.save_model()
+        is_fine_tuned = True
+        print("✅ Fine-tuning completed!")
+    except Exception as e:
+        print(f"❌ Fine-tuning failed: {e}")
+        is_fine_tuned = False
+    finally:
+        # Clean up trainer to free memory
+        del trainer
+        # Clean up dataset after training
+        dataset = None
+        # Force garbage collection
+        gc.collect()
+        # Set model back to eval mode
+        model.eval()
 
 # Serve index.html from the root directory
 @app.route('/')
@@ -147,70 +188,105 @@ def serve_ui():
 # Health check endpoint
 @app.route('/health')
 def health_check():
-    return '', 200  # Returns an empty response with 200 OK status
+    return '', 200
 
 @app.route('/status', methods=['GET'])
 def get_status():
     """Get system status"""
+    global model, is_fine_tuned
+    
+    model_loaded = model is not None
+    fine_tuned_exists = os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir)
+    
+    if fine_tuned_exists and model_loaded:
+        status = "ready"
+        message = "Model is fine-tuned and ready for inference"
+    elif model_loaded:
+        status = "base_model_ready"
+        message = "Base model loaded, fine-tuning available"
+    else:
+        status = "not_ready"
+        message = "Model not loaded yet"
+    
     return jsonify({
-        "status": "ready" if is_fine_tuned else "not_ready",
-        "message": "Model is fine-tuned and ready for inference" if is_fine_tuned else "Model is not fine-tuned yet",
-        "dataset_size": len(dataset) if dataset else 0
+        "status": status,
+        "message": message,
+        "model_loaded": model_loaded,
+        "fine_tuned_exists": fine_tuned_exists,
+        "is_fine_tuned": is_fine_tuned
     })
 
 @app.route('/infer', methods=['POST'])
 def infer():
-    """Generate medical advice"""
-    global is_fine_tuned
-    if not is_fine_tuned:
-        fine_tune_model()
+    """Generate medical advice with lazy loading"""
+    global model, tokenizer, is_fine_tuned
+    
     try:
-        if not is_fine_tuned:
-            return jsonify({"detail": "Model is not fine-tuned yet. Please wait for initialization to complete."}), 503
+        # Lazy load model if not already loaded
+        if model is None:
+            print("🔄 Lazy loading model...")
+            is_fine_tuned = load_model_lazy()
+        
+        # Fine-tune if needed and not already done
+        if not is_fine_tuned and not os.path.exists(checkpoint_dir):
+            print("🔧 Fine-tuning model...")
+            fine_tune_model()
+        
+        # Validate request
         data = request.get_json()
         if not data:
             return jsonify({"detail": "No JSON data provided"}), 400
+            
         instruction = data.get('instruction', '').strip()
         input_text = data.get('input_text', '').strip()
+        
         if not instruction:
             return jsonify({"detail": "Instruction field is required"}), 400
+        
+        # Prepare prompt
         prompt = f"Instruction: {instruction}\n"
         if input_text:
             prompt += f"Input: {input_text}\n"
         prompt += "Answer:"
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=48)
+        
+        # Tokenize with reduced max length
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=32)
         inputs = {k: v.to(device) for k, v in inputs.items()}
+        
+        # Ensure model is in eval mode
         model.eval()
+        
+        # Generate response
         start_time = time.time()
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
-                max_new_tokens=30,
+                max_new_tokens=20,  # Reduced from 30
                 do_sample=False,
                 temperature=1.0,
                 pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=tokenizer.eos_token_id,
+                use_cache=False,  # Disable caching to save memory
             )
         end_time = time.time()
+        
+        # Decode response
         response = tokenizer.decode(outputs[0], skip_special_tokens=True)
         generated_answer = response[len(prompt):].strip()
-        actual_answer = "No reference answer available in dataset."
-        try:
-            matching_examples = dataset.filter(
-                lambda x: x['instruction'].lower() == instruction.lower() and 
-                         x.get('input', '').lower() == input_text.lower()
-            )
-            if len(matching_examples) > 0:
-                actual_answer = matching_examples[0]['output']
-        except Exception as e:
-            print(f"Error finding reference answer: {e}")
+        
+        # Clean up
+        del inputs, outputs
+        gc.collect()
+        
         return jsonify({
             "generated_answer": generated_answer,
-            "actual_answer": actual_answer,
             "time_taken": round(end_time - start_time, 2),
-            "model_status": "fine_tuned"
+            "model_status": "fine_tuned" if is_fine_tuned else "base_model"
         })
+        
     except Exception as e:
+        # Clean up on error
+        gc.collect()
         return jsonify({"detail": f"Error during inference: {str(e)}"}), 500
 
 @app.errorhandler(404)
@@ -220,3 +296,6 @@ def not_found(error):
 @app.errorhandler(500)
 def internal_error(error):
     return jsonify({"detail": "Internal server error"}), 500
+
+if __name__ == '__main__':
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
