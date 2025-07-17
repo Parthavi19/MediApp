@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import os
 import gc
 import time
+import threading
 import torch
 import warnings
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -32,30 +33,35 @@ torch.backends.mps.is_available = lambda: False
 model = None
 tokenizer = None
 is_fine_tuned = False
+model_loading = False
 checkpoint_dir = os.environ.get("CHECKPOINT_DIR", "/app/tinyllama-chatdoctor-checkpoint")
 
-def load_model_lazy():
-    """Load model only when needed"""
-    global model, tokenizer, is_fine_tuned
+def load_model_background():
+    """Load model in background thread"""
+    global model, tokenizer, is_fine_tuned, model_loading
     
-    # Check if fine-tuned model exists first
-    if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
-        print("🔄 Loading existing fine-tuned model...")
-        try:
-            tokenizer = AutoTokenizer.from_pretrained(checkpoint_dir)
-            model = AutoModelForCausalLM.from_pretrained(checkpoint_dir)
-            model.to(device)
-            model.eval()
-            is_fine_tuned = True
-            print("✅ Fine-tuned model loaded successfully!")
-            return True
-        except Exception as e:
-            print(f"⚠️ Error loading fine-tuned model: {e}. Falling back to base model.")
+    model_loading = True
+    print("🔄 Starting background model loading...")
     
-    # Load base model if no fine-tuned version or if loading fails
-    print("🔄 Loading base TinyLlama model...")
-    model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
     try:
+        # Check if fine-tuned model exists first
+        if os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir):
+            print("🔄 Loading existing fine-tuned model...")
+            try:
+                tokenizer = AutoTokenizer.from_pretrained(checkpoint_dir)
+                model = AutoModelForCausalLM.from_pretrained(checkpoint_dir)
+                model.to(device)
+                model.eval()
+                is_fine_tuned = True
+                print("✅ Fine-tuned model loaded successfully!")
+                model_loading = False
+                return
+            except Exception as e:
+                print(f"⚠️ Error loading fine-tuned model: {e}. Falling back to base model.")
+        
+        # Load base model if no fine-tuned version or if loading fails
+        print("🔄 Loading base TinyLlama model...")
+        model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
         model = AutoModelForCausalLM.from_pretrained(model_id)
@@ -64,10 +70,36 @@ def load_model_lazy():
         model.eval()
         print("✅ Base model loaded successfully!")
         is_fine_tuned = False
-        return False
+        model_loading = False
+        
     except Exception as e:
-        print(f"⚠️ Error loading base model: {e}")
+        print(f"⚠️ Error loading model: {e}")
+        model_loading = False
         raise
+
+def load_model_lazy():
+    """Load model only when needed"""
+    global model, tokenizer, is_fine_tuned, model_loading
+    
+    if model is not None:
+        return is_fine_tuned
+    
+    if model_loading:
+        # Wait for background loading to complete
+        while model_loading:
+            time.sleep(1)
+        return is_fine_tuned
+    
+    # Start background loading
+    thread = threading.Thread(target=load_model_background)
+    thread.daemon = True
+    thread.start()
+    
+    # Wait for model to load
+    while model_loading:
+        time.sleep(1)
+    
+    return is_fine_tuned
 
 # Serve index.html from the root directory
 @app.route('/')
@@ -80,7 +112,7 @@ def serve_ui():
     except IOError as e:
         return f"Error reading index.html: {str(e)}", 500
 
-# Health check endpoint for Cloud Run
+# Health check endpoint for Cloud Run - always returns 200 for fast startup
 @app.route('/health')
 def health_check():
     """Health check endpoint for Cloud Run"""
@@ -89,21 +121,26 @@ def health_check():
 @app.route('/readiness')
 def readiness_check():
     """Readiness check - returns 200 when model is loaded"""
-    global model
+    global model, model_loading
     if model is not None:
         return jsonify({"status": "ready", "model_loaded": True}), 200
+    elif model_loading:
+        return jsonify({"status": "loading", "model_loaded": False}), 202
     else:
         return jsonify({"status": "not_ready", "model_loaded": False}), 503
 
 @app.route('/status', methods=['GET'])
 def get_status():
     """Get system status"""
-    global model, is_fine_tuned
+    global model, is_fine_tuned, model_loading
     
     model_loaded = model is not None
     fine_tuned_exists = os.path.exists(checkpoint_dir) and os.path.isdir(checkpoint_dir)
     
-    if fine_tuned_exists and model_loaded:
+    if model_loading:
+        status = "loading"
+        message = "Model is currently loading..."
+    elif fine_tuned_exists and model_loaded:
         status = "ready"
         message = "Model is fine-tuned and ready for inference"
     elif model_loaded:
@@ -117,6 +154,7 @@ def get_status():
         "status": status,
         "message": message,
         "model_loaded": model_loaded,
+        "model_loading": model_loading,
         "fine_tuned_exists": fine_tuned_exists,
         "is_fine_tuned": is_fine_tuned
     })
@@ -124,9 +162,13 @@ def get_status():
 @app.route('/infer', methods=['POST'])
 def infer():
     """Generate medical advice with lazy loading"""
-    global model, tokenizer, is_fine_tuned
+    global model, tokenizer, is_fine_tuned, model_loading
     
     try:
+        # Check if model is currently loading
+        if model_loading:
+            return jsonify({"detail": "Model is currently loading. Please try again in a moment."}), 503
+        
         # Lazy load model if not already loaded
         if model is None:
             print("🔄 Lazy loading model...")
@@ -198,5 +240,8 @@ def internal_error(error):
     return jsonify({"detail": "Internal server error"}), 500
 
 if __name__ == '__main__':
+    # Start background model loading
+    print("🚀 Starting Flask app...")
+    
     # Only for local testing, Cloud Run will use Gunicorn
     app.run(host='0.0.0.0', port=8080, debug=False)
