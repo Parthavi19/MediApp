@@ -23,21 +23,18 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--memory'
-      - '2Gi'
+      - '8Gi'  # Increased from 2Gi to 8Gi
       - '--cpu'
-      - '2'
+      - '4'    # Increased from 2 to 4 (recommended ratio)
       - '--timeout'
       - '3600'
       - '--concurrency'
       - '1'
       - '--max-instances'
       - '1'
-
 images:
   - 'gcr.io/$PROJECT_ID/my-flask-app:$BUILD_ID'
-
 timeout: 3600s
-
 options:
   machineType: 'E2_HIGHCPU_8'
   diskSizeGb: 100
