@@ -32,7 +32,7 @@ torch.backends.mps.is_available = lambda: False
 model = None
 tokenizer = None
 is_fine_tuned = False
-checkpoint_dir = os.environ.get("CHECKPOINT_DIR", "./tinyllama-chatdoctor-checkpoint")
+checkpoint_dir = os.environ.get("CHECKPOINT_DIR", "/app/tinyllama-chatdoctor-checkpoint")
 
 def load_model_lazy():
     """Load model only when needed"""
@@ -45,24 +45,29 @@ def load_model_lazy():
             tokenizer = AutoTokenizer.from_pretrained(checkpoint_dir)
             model = AutoModelForCausalLM.from_pretrained(checkpoint_dir)
             model.to(device)
-            model.eval()  # Set to eval mode immediately
+            model.eval()
             is_fine_tuned = True
+            print("✅ Fine-tuned model loaded successfully!")
             return True
         except Exception as e:
-            print(f"⚠️ Error loading fine-tuned model: {e}")
+            print(f"⚠️ Error loading fine-tuned model: {e}. Falling back to base model.")
     
-    # Load base model if no fine-tuned version
+    # Load base model if no fine-tuned version or if loading fails
     print("🔄 Loading base TinyLlama model...")
     model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(model_id)
-    model.config.use_cache = False
-    model.to(device)
-    model.eval()
-    print("✅ Base model loaded!")
-    is_fine_tuned = False
-    return False
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
+        model = AutoModelForCausalLM.from_pretrained(model_id)
+        model.config.use_cache = False
+        model.to(device)
+        model.eval()
+        print("✅ Base model loaded successfully!")
+        is_fine_tuned = False
+        return False
+    except Exception as e:
+        print(f"⚠️ Error loading base model: {e}")
+        raise
 
 # Serve index.html from the root directory
 @app.route('/')
@@ -71,7 +76,7 @@ def serve_ui():
         with open('index.html', 'r', encoding='utf-8') as file:
             return file.read()
     except FileNotFoundError:
-        return "index.html not found. Please make sure the file exists in the root directory.", 404
+        return "index.html not found. Please ensure the file exists in the root directory.", 404
     except IOError as e:
         return f"Error reading index.html: {str(e)}", 500
 
@@ -183,4 +188,5 @@ def internal_error(error):
     return jsonify({"detail": "Internal server error"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    # Only for local testing, Cloud Run will use Gunicorn
+    app.run(host='0.0.0.0', port=8080, debug=False)
